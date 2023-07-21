@@ -23,8 +23,6 @@ const handleMCODeonticExpression = (
   // save the object
   addToObjectsSet(mediaContractualObjects, deonticObj.identifier, deonticObj);
 
-  console.log(deonticObj);
-
   // update contract
   const referencedContract = mediaContractualObjects[deonticObj.issuedIn];
   addElement(
@@ -406,16 +404,27 @@ const handleFact = (
   }
   if (factObj.makesTrue !== undefined) {
     // TODO EVENT
-    factObj.makesTrue.forEach((actionId) => {
-      const actEle = jsonLDGraph[actionId];
-      const actClassData = lut.AllClasses[getType(actEle).toLowerCase()];
-      handleAction(
-        jsonLDGraph,
-        mediaContractualObjects,
-        actClassData,
-        actEle,
-        parentContractId
-      );
+    factObj.makesTrue.forEach((actionEventId) => {
+      const actEventEle = jsonLDGraph[actionEventId];
+      const actEventClassData =
+        lut.AllClasses[getType(actEventEle).toLowerCase()];
+      if (actEventClassData[0] === 'IPEntity') {
+        handleIPEntity(
+          jsonLDGraph,
+          mediaContractualObjects,
+          actEventClassData,
+          actEventEle,
+          parentContractId
+        );
+      } else {
+        handleAction(
+          jsonLDGraph,
+          mediaContractualObjects,
+          actEventClassData,
+          actEventEle,
+          parentContractId
+        );
+      }
     });
   }
   if (factObj.withIPEntity !== undefined) {

@@ -9,9 +9,12 @@
   "author": "Mirko Zichichi <mikerz83@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "@frogcat/ttl2jsonld": "0.0.6"
+    "@frogcat/ttl2jsonld": "0.0.6",
+    "url": "^0.11.1"
   },
   "devDependencies": {
-    "command-line-args": "^5.1.1"
+    "command-line-args": "^5.1.1",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4"
   }
 }

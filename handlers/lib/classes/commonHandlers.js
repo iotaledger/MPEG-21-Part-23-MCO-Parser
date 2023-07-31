@@ -665,9 +665,9 @@ const handleAction = (
     });
   }
   if (actionObj.sellsDeontic !== undefined) {
-    const deonticEle = jsonLDGraph[deonticObj.signatory];
+    const deonticEle = jsonLDGraph[actionObj.sellsDeontic];
     const deonticClassData = lut.AllClasses[getType(deonticEle).toLowerCase()];
-    mcoD.handleMCODeonticExpression(
+    handleMCODeonticExpression(
       jsonLDGraph,
       mediaContractualObjects,
       deonticClassData,

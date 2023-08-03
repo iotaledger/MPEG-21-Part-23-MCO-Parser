@@ -5,9 +5,9 @@
   "dc:identifier": ["metadata"],
   "mco-core:address": ["address"],
   "mco-core:signature": ["signature"],
+  "mco-core:hassignatory": ["signatory"],
   "mvco:hassocialtag": ["socialTag"],
   "mvco:actonbehalfof": ["actOnBehalfOf"],
   "mvco:belongsto": ["belongsToCollective"],
-  "mvco:isrightsownerof": ["isRightsOwnerOf"],
-  "mvco:hassignatory": ["signatory"]
+  "mvco:isrightsownerof": ["isRightsOwnerOf"]
 }

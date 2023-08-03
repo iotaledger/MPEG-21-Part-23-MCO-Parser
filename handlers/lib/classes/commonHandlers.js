@@ -1,18 +1,20 @@
 // To avoid module exports inside circular dependency
 const { addElement } = require('../../../generators/lib/AddElement');
 const generators = require('../../../generators/');
-const { addToObjectsSet, getType, parsed } = require('../Utils');
+const { addToObjectsSet, getType, parsed, obtainObject } = require('../Utils');
 const lut = require('../../../lookup-tables/');
 
 const { handleTextClause } = require('./TextClause');
 const { handleInterval } = require('./Interval');
 const { handleTrack } = require('./Track');
 
-const handleMCODeonticExpression = (
+const handleMCODeonticExpression = async (
+  remoteStorage,
   jsonLDGraph,
   mediaContractualObjects,
   classData,
-  element
+  element,
+  traversedIds
 ) => {
   if (parsed(mediaContractualObjects, element)) return;
   // generate a deontic object
@@ -20,6 +22,8 @@ const handleMCODeonticExpression = (
     classData,
     element
   );
+  traversedIds.ids.push(deonticObj.identifier);
+  traversedIds.deontics.push(deonticObj.identifier);
   // save the object
   addToObjectsSet(mediaContractualObjects, deonticObj.identifier, deonticObj);
 
@@ -32,14 +36,20 @@ const handleMCODeonticExpression = (
     deonticObj.identifier
   );
   // update party issuer
-  const partyEle = jsonLDGraph[deonticObj.issuer];
+  const partyEle = await obtainObject(
+    remoteStorage,
+    jsonLDGraph,
+    deonticObj.issuer
+  );
   const partyClassData = lut.AllClasses[getType(partyEle).toLowerCase()];
-  handleParty(
+  await handleParty(
+    remoteStorage,
     jsonLDGraph,
     mediaContractualObjects,
     partyClassData,
     partyEle,
-    deonticObj.issuedIn
+    deonticObj.issuedIn,
+    traversedIds
   );
   const referencedParty = mediaContractualObjects[deonticObj.issuer];
   addElement(
@@ -50,14 +60,21 @@ const handleMCODeonticExpression = (
   );
   //generate action
   if (deonticObj.act !== undefined) {
-    const actEle = jsonLDGraph[deonticObj.act];
+    const actEle = await obtainObject(
+      remoteStorage,
+      jsonLDGraph,
+      deonticObj.act,
+      traversedIds
+    );
     const actClassData = lut.AllClasses[getType(actEle).toLowerCase()];
-    handleAction(
+    await handleAction(
+      remoteStorage,
       jsonLDGraph,
       mediaContractualObjects,
       actClassData,
       actEle,
-      deonticObj.issuedIn
+      deonticObj.issuedIn,
+      traversedIds
     );
     // update from action
     const actionObj = mediaContractualObjects[actEle['@id']];
@@ -69,51 +86,67 @@ const handleMCODeonticExpression = (
     );
     if (actionObj.actedOver !== undefined) {
       //TODO SERVICE
-      actionObj.actedOver.forEach((ipentityId) => {
+      for (const ipentityId of actionObj.actedOver) {
         addElement(
           { actObjects: 'array' },
           deonticObj,
           'actObjects',
           ipentityId
         );
-        const ipentityEle = jsonLDGraph[ipentityId];
+        const ipentityEle = await obtainObject(
+          remoteStorage,
+          jsonLDGraph,
+          ipentityId
+        );
         const ipentityClassData =
           lut.AllClasses[getType(ipentityEle).toLowerCase()];
-        handleIPEntity(
+        await handleIPEntity(
+          remoteStorage,
           jsonLDGraph,
           mediaContractualObjects,
           ipentityClassData,
           ipentityEle,
-          deonticObj.issuedIn
+          deonticObj.issuedIn,
+          traversedIds
         );
-      });
+      }
     }
     if (actionObj.resultsIn !== undefined) {
-      actionObj.resultsIn.forEach((ipentityId) => {
+      for (const ipentityId of actionObj.resultsIn) {
         addElement(
           { resultantObject: 'array' },
           deonticObj,
           'resultantObject',
           ipentityId
         );
-        const ipentityEle = jsonLDGraph[ipentityId];
+        const ipentityEle = await obtainObject(
+          remoteStorage,
+          jsonLDGraph,
+          ipentityId
+        );
         const ipentityClassData =
           lut.AllClasses[getType(ipentityEle).toLowerCase()];
-        handleIPEntity(
+        await handleIPEntity(
+          remoteStorage,
           jsonLDGraph,
           mediaContractualObjects,
           ipentityClassData,
           ipentityEle,
-          deonticObj.issuedIn
+          deonticObj.issuedIn,
+          traversedIds
         );
-      });
+      }
     }
   }
 
   // traverse related elements
   if (deonticObj.textClauses !== undefined) {
-    deonticObj.textClauses.forEach((textClauseId) => {
-      const textClauseEle = jsonLDGraph[textClauseId];
+    for (const textClauseId of deonticObj.textClauses) {
+      const textClauseEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        textClauseId
+      );
       const textClauseClassData =
         lut.AllClasses[getType(textClauseEle).toLowerCase()];
       handleTextClause(
@@ -121,35 +154,47 @@ const handleMCODeonticExpression = (
         mediaContractualObjects,
         textClauseClassData,
         textClauseEle,
-        deonticObj.issuedIn
+        deonticObj.issuedIn,
+        traversedIds
       );
-    });
+    }
   }
   if (deonticObj.constraints !== undefined) {
-    deonticObj.constraints.forEach((factId) => {
-      const factEle = jsonLDGraph[factId];
+    for (const factId of deonticObj.constraints) {
+      const factEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        factId,
+        traversedIds
+      );
       const factClassData = lut.AllClasses[getType(factEle).toLowerCase()];
-      handleFact(
+      await handleFact(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         factClassData,
         factEle,
-        deonticObj.issuedIn
+        deonticObj.issuedIn,
+        traversedIds
       );
-    });
+    }
   }
 };
 
-const handleIPEntity = (
+const handleIPEntity = async (
+  remoteStorage,
   jsonLDGraph,
   mediaContractualObjects,
   classData,
   element,
-  parentContractId
+  parentContractId,
+  traversedIds
 ) => {
   if (parsed(mediaContractualObjects, element)) return;
   // generate an IPEntity object
   const ipentityObj = generators.generateIPEntity(classData, element);
+  traversedIds.ids.push(ipentityObj.identifier);
+  traversedIds.objects.push(ipentityObj.identifier);
   // save the object
   addToObjectsSet(mediaContractualObjects, ipentityObj.identifier, ipentityObj);
 
@@ -164,146 +209,188 @@ const handleIPEntity = (
 
   // traverse related elements
   if (ipentityObj.rightsOwners !== undefined) {
-    ipentityObj.rightsOwners.forEach((partyId) => {
-      const partyEle = jsonLDGraph[partyId];
+    for (const partyId of ipentityObj.rightsOwners) {
+      const partyEle = await obtainObject(remoteStorage, jsonLDGraph, partyId);
       const partyClassData = lut.AllClasses[getType(partyEle).toLowerCase()];
-      handleParty(
+      await handleParty(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         partyClassData,
         partyEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (ipentityObj.isMadeUpOf !== undefined) {
-    ipentityObj.isMadeUpOf.forEach((ipentityId) => {
-      const ipentityEle = jsonLDGraph[ipentityId];
+    for (const ipentityId of ipentityObj.isMadeUpOf) {
+      const ipentityEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        ipentityId
+      );
       const ipentityClassData =
         lut.AllClasses[getType(ipentityEle).toLowerCase()];
-      handleIPEntity(
+      await handleIPEntity(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         ipentityClassData,
         ipentityEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (ipentityObj.resultedFrom !== undefined) {
-    ipentityObj.resultedFrom.forEach((actionId) => {
-      const actEle = jsonLDGraph[actionId];
+    for (const actionId of ipentityObj.resultedFrom) {
+      const actEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        actionId,
+        traversedIds
+      );
       const actClassData = lut.AllClasses[getType(actEle).toLowerCase()];
-      handleAction(
+      await handleAction(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         actClassData,
         actEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (ipentityObj.segments !== undefined) {
-    ipentityObj.segments.forEach((ipentityId) => {
-      const ipentityEle = jsonLDGraph[ipentityId];
+    for (const ipentityId of ipentityObj.segments) {
+      const ipentityEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        ipentityId
+      );
       const ipentityClassData =
         lut.AllClasses[getType(ipentityEle).toLowerCase()];
-      handleIPEntity(
+      await handleIPEntity(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         ipentityClassData,
         ipentityEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (ipentityObj.tracks !== undefined) {
-    ipentityObj.tracks.forEach((trackid) => {
-      const trackEle = jsonLDGraph[trackid];
+    for (const trackid of ipentityObj.tracks) {
+      const trackEle = await obtainObject(remoteStorage, jsonLDGraph, trackid);
       const trackClassData = lut.AllClasses[getType(trackEle).toLowerCase()];
       handleTrack(
         jsonLDGraph,
         mediaContractualObjects,
         trackClassData,
         trackEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (ipentityObj.intervals !== undefined) {
-    ipentityObj.intervals.forEach((intervalId) => {
-      const intervalEle = jsonLDGraph[intervalId];
+    for (const intervalId of ipentityObj.intervals) {
+      const intervalEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        intervalId
+      );
       const intervalClassData =
         lut.AllClasses[getType(intervalEle).toLowerCase()];
-      handleInterval(
+      await handleInterval(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         intervalClassData,
         intervalEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (ipentityObj.segmentOf !== undefined) {
-    const ipentityEle = jsonLDGraph[ipentityObj.segmentOf];
+    const ipentityEle = await obtainObject(
+      remoteStorage,
+      jsonLDGraph,
+      ipentityObj.segmentOf
+    );
     const ipentityClassData =
       lut.AllClasses[getType(ipentityEle).toLowerCase()];
-    handleIPEntity(
+    await handleIPEntity(
+      remoteStorage,
       jsonLDGraph,
       mediaContractualObjects,
       ipentityClassData,
       ipentityEle,
-      parentContractId
+      parentContractId,
+      traversedIds
     );
   }
   if (ipentityObj.contains !== undefined) {
-    ipentityObj.contains.forEach((ipentityId) => {
-      const ipentityEle = jsonLDGraph[ipentityId];
+    for (const ipentityId of ipentityObj.contains) {
+      const ipentityEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        ipentityId
+      );
       const ipentityClassData =
         lut.AllClasses[getType(ipentityEle).toLowerCase()];
-      handleIPEntity(
+      await handleIPEntity(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         ipentityClassData,
         ipentityEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (ipentityObj.onTrack !== undefined) {
-    ipentityObj.onTrack.forEach((trackid) => {
-      const trackEle = jsonLDGraph[trackid];
+    for (const trackid of ipentityObj.onTrack) {
+      const trackEle = await obtainObject(remoteStorage, jsonLDGraph, trackid);
       const trackClassData = lut.AllClasses[getType(trackEle).toLowerCase()];
       handleTrack(
         jsonLDGraph,
         mediaContractualObjects,
         trackClassData,
         trackEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
 };
 
-const handleParty = (
+const handleParty = async (
+  remoteStorage,
   jsonLDGraph,
   mediaContractualObjects,
   classData,
   element,
-  parentContractId
+  parentContractId,
+  traversedIds
 ) => {
   if (parsed(mediaContractualObjects, element)) return;
   // generate a party object
   const partyObj = generators.generateParty(classData, element);
+  traversedIds.ids.push(partyObj.identifier);
+  traversedIds.parties.push(partyObj.identifier);
   // save the object
   addToObjectsSet(mediaContractualObjects, partyObj.identifier, partyObj);
 
   // update contract
   const referencedContract = mediaContractualObjects[parentContractId];
-  if (
-    !referencedContract.parties.includes(partyObj.identifier) &&
-    classData[1] === 'MCOUser'
-  ) {
+  if (!referencedContract.parties.includes(partyObj.identifier)) {
     addElement(
       { otherPersonUsers: 'array' },
       referencedContract,
@@ -314,68 +401,87 @@ const handleParty = (
 
   // traverse related elements
   if (partyObj.actOnBehalfOf !== undefined) {
-    partyObj.actOnBehalfOf.forEach((partyId) => {
-      const partyEle = jsonLDGraph[partyId];
+    for (const partyId of partyObj.actOnBehalfOf) {
+      const partyEle = await obtainObject(remoteStorage, jsonLDGraph, partyId);
       const partyClassData = lut.AllClasses[getType(partyEle).toLowerCase()];
-      handleParty(
+      await handleParty(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         partyClassData,
         partyEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (partyObj.belongsToCollective !== undefined) {
-    partyObj.actOnBehalfOf.forEach((partyId) => {
-      const partyEle = jsonLDGraph[partyId];
+    for (const partyId of partyObj.belongsToCollective) {
+      const partyEle = await obtainObject(remoteStorage, jsonLDGraph, partyId);
       const partyClassData = lut.AllClasses[getType(partyEle).toLowerCase()];
-      handleParty(
+      await handleParty(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         partyClassData,
         partyEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (partyObj.isRightsOwnerOf !== undefined) {
-    partyObj.isRightsOwnerOf.forEach((ipentityId) => {
-      const ipentityEle = jsonLDGraph[ipentityId];
+    for (const ipentityId of partyObj.isRightsOwnerOf) {
+      const ipentityEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        ipentityId
+      );
       const ipentityClassData =
         lut.AllClasses[getType(ipentityEle).toLowerCase()];
-      handleIPEntity(
+      await handleIPEntity(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         ipentityClassData,
         ipentityEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (partyObj.signatory !== undefined) {
-    const partyEle = jsonLDGraph[partyObj.signatory];
+    const partyEle = await obtainObject(
+      remoteStorage,
+      jsonLDGraph,
+      partyObj.signatory
+    );
     const partyClassData = lut.AllClasses[getType(partyEle).toLowerCase()];
-    handleParty(
+    await handleParty(
+      remoteStorage,
       jsonLDGraph,
       mediaContractualObjects,
       partyClassData,
       partyEle,
-      parentContractId
+      parentContractId,
+      traversedIds
     );
   }
 };
 
-const handleFact = (
+const handleFact = async (
+  remoteStorage,
   jsonLDGraph,
   mediaContractualObjects,
   classData,
   element,
-  parentContractId
+  parentContractId,
+  traversedIds
 ) => {
   if (parsed(mediaContractualObjects, element)) return;
   // generate a fact object
   const factObj = generators.generateFact(classData, element);
+  traversedIds.ids.push(factObj.identifier);
   // save the object
   addToObjectsSet(mediaContractualObjects, factObj.identifier, factObj);
 
@@ -390,222 +496,321 @@ const handleFact = (
 
   // traverse related elements
   if (factObj.composedFacts !== undefined) {
-    factObj.composedFacts.forEach((factId) => {
-      const factEle = jsonLDGraph[factId];
+    for (const factId of factObj.composedFacts) {
+      const factEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        factId,
+        traversedIds
+      );
       const factClassData = lut.AllClasses[getType(factEle).toLowerCase()];
-      handleFact(
+      await handleFact(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         factClassData,
         factEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (factObj.makesTrue !== undefined) {
-    // TODO EVENT
-    factObj.makesTrue.forEach((actionEventId) => {
-      const actEventEle = jsonLDGraph[actionEventId];
+    for (const actionEventId of factObj.makesTrue) {
+      const actEventEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        actionEventId,
+        traversedIds
+      );
       const actEventClassData =
         lut.AllClasses[getType(actEventEle).toLowerCase()];
       if (actEventClassData[0] === 'IPEntity') {
-        handleIPEntity(
+        await handleIPEntity(
+          remoteStorage,
           jsonLDGraph,
           mediaContractualObjects,
           actEventClassData,
           actEventEle,
-          parentContractId
+          parentContractId,
+          traversedIds
         );
       } else {
-        handleAction(
+        await handleAction(
+          remoteStorage,
           jsonLDGraph,
           mediaContractualObjects,
           actEventClassData,
           actEventEle,
-          parentContractId
+          parentContractId,
+          traversedIds
         );
       }
-    });
+    }
   }
   if (factObj.withIPEntity !== undefined) {
-    const ipentityEle = jsonLDGraph[factObj.withIPEntity];
+    const ipentityEle = await obtainObject(
+      remoteStorage,
+      jsonLDGraph,
+      factObj.withIPEntity
+    );
     const ipentityClassData =
       lut.AllClasses[getType(ipentityEle).toLowerCase()];
-    handleIPEntity(
+    await handleIPEntity(
+      remoteStorage,
       jsonLDGraph,
       mediaContractualObjects,
       ipentityClassData,
       ipentityEle,
-      parentContractId
+      parentContractId,
+      traversedIds
     );
   }
   if (factObj.partOf !== undefined) {
-    factObj.partOf.forEach((ipentityId) => {
-      const ipentityEle = jsonLDGraph[ipentityId];
+    for (const ipentityId of factObj.partOf) {
+      const ipentityEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        ipentityId
+      );
       const ipentityClassData =
         lut.AllClasses[getType(ipentityEle).toLowerCase()];
-      handleIPEntity(
+      await handleIPEntity(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         ipentityClassData,
         ipentityEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   // personal data
   if (factObj.hasDataController !== undefined) {
-    const partyEle = jsonLDGraph[factObj.hasDataController];
+    const partyEle = await obtainObject(
+      remoteStorage,
+      jsonLDGraph,
+      factObj.hasDataController
+    );
     const partyClassData = lut.AllClasses[getType(partyEle).toLowerCase()];
-    handleParty(
+    await handleParty(
+      remoteStorage,
       jsonLDGraph,
       mediaContractualObjects,
       partyClassData,
       partyEle,
-      parentContractId
+      parentContractId,
+      traversedIds
     );
   }
   if (factObj.hasDataSubject !== undefined) {
-    const partyEle = jsonLDGraph[factObj.hasDataSubject];
+    const partyEle = await obtainObject(
+      remoteStorage,
+      jsonLDGraph,
+      factObj.hasDataSubject
+    );
     const partyClassData = lut.AllClasses[getType(partyEle).toLowerCase()];
-    handleParty(
+    await handleParty(
+      remoteStorage,
       jsonLDGraph,
       mediaContractualObjects,
       partyClassData,
       partyEle,
-      parentContractId
+      parentContractId,
+      traversedIds
     );
   }
   if (factObj.hasLegalBasis !== undefined) {
-    factObj.hasLegalBasis.forEach((factId) => {
-      const factEle = jsonLDGraph[factId];
+    for (const factId of factObj.hasLegalBasis) {
+      const factEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        factId,
+        traversedIds
+      );
       const factClassData = lut.AllClasses[getType(factEle).toLowerCase()];
-      handleFact(
+      await handleFact(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         factClassData,
         factEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (factObj.hasPersonalData !== undefined) {
-    factObj.hasPersonalData.forEach((ipentityId) => {
-      const ipentityEle = jsonLDGraph[ipentityId];
+    for (const ipentityId of factObj.hasPersonalData) {
+      const ipentityEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        ipentityId
+      );
       const ipentityClassData =
         lut.AllClasses[getType(ipentityEle).toLowerCase()];
-      handleIPEntity(
+      await handleIPEntity(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         ipentityClassData,
         ipentityEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (factObj.hasPersonalDataHandling !== undefined) {
-    factObj.hasPersonalDataHandling.forEach((factId) => {
-      const factEle = jsonLDGraph[factId];
+    for (const factId of factObj.hasPersonalDataHandling) {
+      const factEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        factId,
+        traversedIds
+      );
       const factClassData = lut.AllClasses[getType(factEle).toLowerCase()];
-      handleFact(
+      await handleFact(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         factClassData,
         factEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (factObj.hasProcessing !== undefined) {
-    factObj.hasProcessing.forEach((factId) => {
-      const actionEle = jsonLDGraph[factId];
+    for (const factId of factObj.hasProcessing) {
+      const actionEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        factId,
+        traversedIds
+      );
       const actionClassData = lut.AllClasses[getType(actionEle).toLowerCase()];
-      handleAction(
+      await handleAction(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         actionClassData,
         actionEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (factObj.hasPurpose !== undefined) {
-    factObj.hasPurpose.forEach((factId) => {
-      const factEle = jsonLDGraph[factId];
+    for (const factId of factObj.hasPurpose) {
+      const factEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        factId,
+        traversedIds
+      );
       const factClassData = lut.AllClasses[getType(factEle).toLowerCase()];
-      handleFact(
+      await handleFact(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         factClassData,
         factEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (factObj.hasRecipient !== undefined) {
-    factObj.hasRecipient.forEach((factId) => {
-      const partyEle = jsonLDGraph[factId];
+    for (const factId of factObj.hasRecipient) {
+      const partyEle = await obtainObject(remoteStorage, jsonLDGraph, factId);
       const partyClassData = lut.AllClasses[getType(partyEle).toLowerCase()];
-      handleParty(
+      await handleParty(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         partyClassData,
         partyEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (factObj.hasRight !== undefined) {
-    factObj.hasRight.forEach((factId) => {
-      const factEle = jsonLDGraph[factId];
+    for (const factId of factObj.hasRight) {
+      const factEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        factId,
+        traversedIds
+      );
       const factClassData = lut.AllClasses[getType(factEle).toLowerCase()];
-      handleFact(
+      await handleFact(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         factClassData,
         factEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (factObj.hasRisk !== undefined) {
-    factObj.hasRisk.forEach((factId) => {
-      const factEle = jsonLDGraph[factId];
+    for (const factId of factObj.hasRisk) {
+      const factEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        factId,
+        traversedIds
+      );
       const factClassData = lut.AllClasses[getType(factEle).toLowerCase()];
-      handleFact(
+      await handleFact(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         factClassData,
         factEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (factObj.hasTechnicalOrganisationalMeasure !== undefined) {
-    factObj.hasTechnicalOrganisationalMeasure.forEach((factId) => {
-      const factEle = jsonLDGraph[factId];
+    for (const factId of factObj.hasTechnicalOrganisationalMeasure) {
+      const factEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        factId,
+        traversedIds
+      );
       const factClassData = lut.AllClasses[getType(factEle).toLowerCase()];
-      handleFact(
+      await handleFact(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         factClassData,
         factEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
 };
 
-const handleAction = (
+const handleAction = async (
+  remoteStorage,
   jsonLDGraph,
   mediaContractualObjects,
   classData,
   element,
-  parentContractId
+  parentContractId,
+  traversedIds
 ) => {
   if (parsed(mediaContractualObjects, element)) return;
   // generate an action object
   const actionObj = generators.generateAction(classData, element);
+  traversedIds.ids.push(actionObj.identifier);
   // save the object
   addToObjectsSet(mediaContractualObjects, actionObj.identifier, actionObj);
 
@@ -619,14 +824,20 @@ const handleAction = (
   );
   // update party
   if (actionObj.actedBy !== undefined) {
-    const partyEle = jsonLDGraph[actionObj.actedBy];
+    const partyEle = await obtainObject(
+      remoteStorage,
+      jsonLDGraph,
+      actionObj.actedBy
+    );
     const partyClassData = lut.AllClasses[getType(partyEle).toLowerCase()];
-    handleParty(
+    await handleParty(
+      remoteStorage,
       jsonLDGraph,
       mediaContractualObjects,
       partyClassData,
       partyEle,
-      parentContractId
+      parentContractId,
+      traversedIds
     );
     const referencedParty = mediaContractualObjects[actionObj.actedBy];
     addElement(
@@ -639,92 +850,125 @@ const handleAction = (
 
   // traverse related elements
   if (actionObj.impliesAlso !== undefined) {
-    actionObj.impliesAlso.forEach((actId) => {
-      const actEle = jsonLDGraph[actId];
+    for (const actId of actionObj.impliesAlso) {
+      const actEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        actId,
+        traversedIds
+      );
       const actClassData = lut.AllClasses[getType(actEle).toLowerCase()];
-      handleAction(
+      await handleAction(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         actClassData,
         actEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (actionObj.rightGivenBy !== undefined) {
-    actionObj.rightGivenBy.forEach((partyId) => {
-      const partyEle = jsonLDGraph[partyId];
+    for (const partyId of actionObj.rightGivenBy) {
+      const partyEle = await obtainObject(remoteStorage, jsonLDGraph, partyId);
       const partyClassData = lut.AllClasses[getType(partyEle).toLowerCase()];
-      handleParty(
+      await handleParty(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         partyClassData,
         partyEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (actionObj.sellsDeontic !== undefined) {
-    const deonticEle = jsonLDGraph[actionObj.sellsDeontic];
+    const deonticEle = await obtainObject(
+      remoteStorage,
+      jsonLDGraph,
+      actionObj.sellsDeontic
+    );
     const deonticClassData = lut.AllClasses[getType(deonticEle).toLowerCase()];
-    handleMCODeonticExpression(
+    await handleMCODeonticExpression(
+      remoteStorage,
       jsonLDGraph,
       mediaContractualObjects,
       deonticClassData,
-      deonticEle
+      deonticEle,
+      traversedIds
     );
   }
   if (actionObj.recipients !== undefined) {
-    actionObj.recipients.forEach((partyId) => {
-      const partyEle = jsonLDGraph[partyId];
+    for (const partyId of actionObj.recipients) {
+      const partyEle = await obtainObject(remoteStorage, jsonLDGraph, partyId);
       const partyClassData = lut.AllClasses[getType(partyEle).toLowerCase()];
-      handleParty(
+      await handleParty(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         partyClassData,
         partyEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (actionObj.beneficiaries !== undefined) {
-    actionObj.beneficiaries.forEach((partyId) => {
-      const partyEle = jsonLDGraph[partyId];
+    for (const partyId of actionObj.beneficiaries) {
+      const partyEle = await obtainObject(remoteStorage, jsonLDGraph, partyId);
       const partyClassData = lut.AllClasses[getType(partyEle).toLowerCase()];
-      handleParty(
+      await handleParty(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         partyClassData,
         partyEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (actionObj.incomeSources !== undefined) {
-    actionObj.incomeSources.forEach((actId) => {
-      const actEle = jsonLDGraph[actId];
+    for (const actId of actionObj.incomeSources) {
+      const actEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        actId,
+        traversedIds
+      );
       const actClassData = lut.AllClasses[getType(actEle).toLowerCase()];
-      handleAction(
+      await handleAction(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         actClassData,
         actEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
   if (actionObj.isAbout !== undefined) {
-    actionObj.isAbout.forEach((actId) => {
-      const actEle = jsonLDGraph[actId];
+    for (const actId of actionObj.isAbout) {
+      const actEle = await obtainObject(
+        remoteStorage,
+        jsonLDGraph,
+        actId,
+        traversedIds
+      );
       const actClassData = lut.AllClasses[getType(actEle).toLowerCase()];
-      handleAction(
+      await handleAction(
+        remoteStorage,
         jsonLDGraph,
         mediaContractualObjects,
         actClassData,
         actEle,
-        parentContractId
+        parentContractId,
+        traversedIds
       );
-    });
+    }
   }
 };
 

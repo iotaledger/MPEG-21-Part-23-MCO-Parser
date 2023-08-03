@@ -20,4 +20,70 @@ const parsed = (mediaContractualObjects, element) => {
   );
 };
 
-module.exports = { addToObjectsSet, getType, parsed };
+const obtainObject = async (remoteStorage, localJSONLDGraph, objectId) => {
+  let obj = localJSONLDGraph[objectId];
+  if (obj !== undefined) {
+    return obj;
+  } else {
+    let response;
+    try {
+      cid = objectId.split('/').slice(-1)[0];
+      const parsedCID = remoteStorage.CID.parse(cid);
+      response = await Promise.race([
+        remoteStorage.jsonHelia.get(parsedCID),
+        new Promise((resolve, _) => {
+          setTimeout(() => {
+            resolve();
+          }, 3000);
+        }),
+      ]);
+    } catch (error) {
+      throw new Error(`${objectId} ${error}`);
+    }
+
+    console.log(response);
+
+    if (response !== undefined) {
+      return response;
+    } else {
+      throw new Error(`${objectId} Not found`);
+    }
+  }
+};
+
+const obtainActionFact = async (
+  remoteStorage,
+  localJSONLDGraph,
+  objectId,
+  traversedIds
+) => {
+  let obj = localJSONLDGraph[objectId];
+  if (obj !== undefined) {
+    return obj;
+  } else {
+    let response = await fetch(
+      remoteStorage + '/api/v1/objects/rdf/' + objectId
+    );
+    response = await response.json();
+    if (response.status === undefined) {
+      let response2 = await fetch(
+        remoteStorage + '/api/v1/objects/rdf/deonticParent/' + objectId
+      );
+      response2 = await response2.json();
+      if (response2.status === undefined) {
+        traversedIds.deontics.push(response2.deonticIdentifier);
+        return response;
+      }
+    } else {
+      throw new Error(`${objectId} ${response.message}`);
+    }
+  }
+};
+
+module.exports = {
+  addToObjectsSet,
+  getType,
+  parsed,
+  obtainObject,
+  obtainActionFact,
+};

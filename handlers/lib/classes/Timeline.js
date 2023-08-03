@@ -8,11 +8,14 @@ const handleTimeline = (
   mediaContractualObjects,
   classData,
   element,
-  parentContractId
+  parentContractId,
+  traversedIds
 ) => {
   if (parsed(mediaContractualObjects, element)) return;
   // generate a timeline object
   const timelineObj = generators.generateTimeline(classData, element);
+  traversedIds.ids.push(timelineObj.identifier);
+  traversedIds.objects.push(timelineObj.identifier);
   // save the object
   addToObjectsSet(mediaContractualObjects, timelineObj.identifier, timelineObj);
 

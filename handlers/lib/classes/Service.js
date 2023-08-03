@@ -8,11 +8,14 @@ const handleService = (
   mediaContractualObjects,
   classData,
   element,
-  parentContractId
+  parentContractId,
+  traversedIds
 ) => {
   if (parsed(mediaContractualObjects, element)) return;
   // generate a service object
   const serviceObj = generators.generateService(classData, element);
+  traversedIds.ids.push(serviceObj.identifier);
+  traversedIds.objects.push(serviceObj.identifier);
   // save the object
   addToObjectsSet(mediaContractualObjects, serviceObj.identifier, serviceObj);
 

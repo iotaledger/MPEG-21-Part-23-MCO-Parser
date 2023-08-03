@@ -1,19 +1,23 @@
 const { addElement } = require('../../../generators/lib/AddElement');
 const generators = require('../../../generators/');
-const { addToObjectsSet, getType, parsed } = require('../Utils');
+const { addToObjectsSet, getType, parsed, obtainObject } = require('../Utils');
 const lut = require('../../../lookup-tables/');
 const { handleTimeline } = require('./Timeline');
 
-const handleInterval = (
+const handleInterval = async (
+  remoteStorage,
   jsonLDGraph,
   mediaContractualObjects,
   classData,
   element,
-  parentContractId
+  parentContractId,
+  traversedIds
 ) => {
   if (parsed(mediaContractualObjects, element)) return;
   // generate a party object
   const intervalObj = generators.generateInterval(classData, element);
+  traversedIds.ids.push(intervalObj.identifier);
+  traversedIds.objects.push(intervalObj.identifier);
   // save the object
   addToObjectsSet(mediaContractualObjects, intervalObj.identifier, intervalObj);
 
@@ -27,7 +31,11 @@ const handleInterval = (
   );
   // generate timeline
   if (intervalObj.onTimeline !== undefined) {
-    const timelineEle = jsonLDGraph[intervalObj.onTimeline];
+    const timelineEle = await obtainObject(
+      remoteStorage,
+      jsonLDGraph,
+      intervalObj.onTimeline
+    );
     const timelineClassData =
       lut.AllClasses[getType(timelineEle).toLowerCase()];
     handleTimeline(
@@ -35,7 +43,8 @@ const handleInterval = (
       mediaContractualObjects,
       timelineClassData,
       timelineEle,
-      parentContractId
+      parentContractId,
+      traversedIds
     );
     // update from action
     const timelineObj = mediaContractualObjects[timelineEle['@id']];

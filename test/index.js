@@ -5,6 +5,12 @@ const optionDefinitions = [{ name: 'contract', alias: 'c', type: String }];
 const options = commandLineArgs(optionDefinitions);
 
 const contractPath = options.contract;
+const remoteStorage = 'http://localhost:5000';
 
-const ttl = fs.readFileSync(contractPath, 'utf-8');
-console.log(JSON.stringify(getContractFromMCO(ttl), null, 2));
+const main = async () => {
+  const ttl = fs.readFileSync(contractPath, 'utf-8');
+  const res = await getContractFromMCO(ttl, remoteStorage);
+  console.log(JSON.stringify(res.traversedIds, null, 2));
+};
+
+main();

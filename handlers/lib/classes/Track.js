@@ -8,11 +8,14 @@ const handleTrack = (
   mediaContractualObjects,
   classData,
   element,
-  parentContractId
+  parentContractId,
+  traversedIds
 ) => {
   if (parsed(mediaContractualObjects, element)) return;
   // generate a track object
   const trackObj = generators.generateTrack(classData, element);
+  traversedIds.ids.push(trackObj.identifier);
+  traversedIds.objects.push(trackObj.identifier);
   // save the object
   addToObjectsSet(mediaContractualObjects, trackObj.identifier, trackObj);
 

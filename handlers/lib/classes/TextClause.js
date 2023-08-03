@@ -8,11 +8,13 @@ const handleTextClause = (
   mediaContractualObjects,
   classData,
   element,
-  parentContractId
+  parentContractId,
+  traversedIds
 ) => {
   if (parsed(mediaContractualObjects, element)) return;
   // generate a text clause object
   const textClauseObj = generators.generateTextClause(classData, element);
+  traversedIds.ids.push(textClauseObj.identifier);
   // save the object
   addToObjectsSet(
     mediaContractualObjects,

@@ -1,7 +1,7 @@
 const parseTTL = require('@frogcat/ttl2jsonld').parse;
-const lut = require('./lookup-tables/');
-const { handleContract, handleMCODeonticExpression } = require('./handlers/');
-const { getType } = require('./handlers/lib/Utils');
+const lut = require('../lookup-tables');
+const { handleContract, handleMCODeonticExpression } = require('../handlers');
+const { getType } = require('../handlers/lib/Utils');
 
 const formatIntoMediaContractualObjects = (mediaContract) => {
   const finalMCObjects = { contracts: [] };

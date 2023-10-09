@@ -39,6 +39,7 @@ export class HeliaOffChainStorage implements OffChainStorage {
 	async publish(payload: Object | string): Promise<string> {
 		console.log('[IPFS] Publishing payload');
 		console.debug("HeliaOffChainStorage:publish()")
+
 		if (typeof payload !== 'object') payload = { payload };
 		const result = 'ipfs://' + (await this.jsonHelia.add(payload)).toString();
 		console.log('[IPFS] Published ', result);
@@ -100,7 +101,7 @@ export class IPFSOffChainStorage {
 		cid = cid.split('/').slice(-1)[0];
 		const parsedCID = this.CID.parse(cid);
 
-		const chunks = [];
+		const chunks: Buffer[] = [];
 		for await (const chunk of this.client.cat(parsedCID)) {
 			chunks.push(chunk);
 		}

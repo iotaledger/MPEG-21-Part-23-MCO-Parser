@@ -1,5 +1,4 @@
-// const defaultIPFSGateway = 'https://api.ipfs.iota-ec.net'
-const defaultIPFSGateway = 'http://localhost:5001'
+const defaultIPFSGateway = 'https://api.ipfs.iota-ec.net'
 
 
 interface OffChainStorage {

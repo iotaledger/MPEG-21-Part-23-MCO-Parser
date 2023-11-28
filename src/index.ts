@@ -67,7 +67,7 @@ const getContractFromMCO = async (ttl) => {
 
 
   // Search for all contract objects
-  for (element of Object.values(jsonLDGraph)) {
+  for (var element of Object.values(jsonLDGraph)) {
     const classData = lut.AllClasses[getType(element).toLowerCase()];
     if (classData[0] === 'Contract') {
       await handleContract(
@@ -82,7 +82,7 @@ const getContractFromMCO = async (ttl) => {
   }
 
   // Search for all deontic expression objects
-  for (element of Object.values(jsonLDGraph)) {
+  for (var element of Object.values(jsonLDGraph)) {
     const classData = lut.AllClasses[getType(element).toLowerCase()];
     if (classData[0] === 'MCODeonticExpression') {
       await handleMCODeonticExpression(

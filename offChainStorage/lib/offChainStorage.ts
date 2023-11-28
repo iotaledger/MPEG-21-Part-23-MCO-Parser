@@ -1,4 +1,7 @@
-const defaultIPFSGateway = 'https://api.ipfs.iota-ec.net'
+// const defaultIPFSGateway = 'https://api.ipfs.iota-ec.net'
+// const defaultIPFSGateway = 'https://ipfs.io'
+const defaultIPFSGateway = "http://localhost:5001"
+// const defaultIPFSGateway = ""
 
 
 interface OffChainStorage {
@@ -63,7 +66,7 @@ export class IPFSOffChainStorage {
 	private client: any;
 	private CID: any;
 
-	constructor(gatewayURL) {
+	constructor(gatewayURL: string) {
 		this.gatewayURL = gatewayURL || defaultIPFSGateway;
 		this.CID = {}
 	}

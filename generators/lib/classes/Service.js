@@ -17,7 +17,7 @@ const generateService = (classData, payload) => {
     if (lut[k.toLowerCase()] !== undefined)
       addElement(modelObj, obj, lut[k.toLowerCase()], payload[k], k);
     else if (k !== '@type')
-      console.log('Warning! Left out:' + payload[k] + ', because:' + k); //addElement(modelObj, obj, 'extra', payload[k], k);
+      console.warn('Warning! Left out:' + payload[k] + ', because:' + k); //addElement(modelObj, obj, 'extra', payload[k], k);
   });
 
   return obj;

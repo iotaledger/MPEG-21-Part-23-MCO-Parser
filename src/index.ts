@@ -2,6 +2,8 @@ const parseTTL = require('@frogcat/ttl2jsonld').parse;
 const lut = require('../lookup-tables');
 const { handleContract, handleMCODeonticExpression } = require('../handlers');
 const { getType } = require('../handlers/lib/Utils');
+const { OffChainStorage } = require('../offChainStorage');
+
 
 const formatIntoMediaContractualObjects = (mediaContract) => {
   const finalMCObjects = { contracts: [] };
@@ -53,17 +55,19 @@ const getContractFromMCO = async (ttl) => {
   });
 
   // IPFS
-  const { createHelia } = await import('helia');
-  const { json } = await import('@helia/json');
   const { CID } = await import('multiformats/cid');
-  const helia = await createHelia();
+
+  const offChainStorage = new OffChainStorage();
   const remoteStorage = {
-    jsonHelia: json(helia),
+    jsonHelia: new OffChainStorage(),
     CID,
   };
+  await offChainStorage.start();
+
+
 
   // Search for all contract objects
-  for (element of Object.values(jsonLDGraph)) {
+  for (var element of Object.values(jsonLDGraph)) {
     const classData = lut.AllClasses[getType(element).toLowerCase()];
     if (classData[0] === 'Contract') {
       await handleContract(
@@ -78,7 +82,7 @@ const getContractFromMCO = async (ttl) => {
   }
 
   // Search for all deontic expression objects
-  for (element of Object.values(jsonLDGraph)) {
+  for (var element of Object.values(jsonLDGraph)) {
     const classData = lut.AllClasses[getType(element).toLowerCase()];
     if (classData[0] === 'MCODeonticExpression') {
       await handleMCODeonticExpression(
@@ -92,7 +96,7 @@ const getContractFromMCO = async (ttl) => {
     }
   }
 
-  await helia.stop();
+  await offChainStorage.stop();
 
   return {
     mediaContractualObjects: formatIntoMediaContractualObjects(
@@ -102,4 +106,6 @@ const getContractFromMCO = async (ttl) => {
   };
 };
 
-module.exports = { getContractFromMCO, getJsonLDGraph };
+
+
+module.exports = { getContractFromMCO, getJsonLDGraph, OffChainStorage };

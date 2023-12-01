@@ -7,25 +7,25 @@ This software parses MCO contracts represented in TURTLE and converts them in Me
 NodeJS is needed to execute the parser, as well as NPM.
 To use the parser it is needed to execute the following command in the main directory:
 
-```
+```shell
 npm install
 ```
 
 ## Usage
 
-To use the parser execute one of the following command in the main directory:
+To use the parser execute one of the following commands in the main directory:
 
-```
-node test/index.js -c [ turtle file path ]
-node test/index.js --contract [ turtle file path ]
+```shell
+ts-node test/index.js -c [ turtle file path ]
+ts-node test/index.js --contract [ turtle file path ]
 ```
 
-Importing this module will provide with a method `getContractFromMCO` that takes in input a string in Turtle form and returns the related Media Contractual Objects.
+Importing this module will provide a method `getContractFromMCO` that takes in input a string in Turtle form and returns the related Media Contractual Objects.
 
 ## Test
 
 To test the parser execute the following command in the main directory:
 
-```
-node test/index.js -c turtle/new/use-case-stream-small-label.ttl
+```shell
+ts-node test/index.js -c turtle/new/use-case-stream-small-label.ttl
 ```

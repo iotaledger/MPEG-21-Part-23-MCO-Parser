@@ -4,19 +4,31 @@ const { handleContract, handleMCODeonticExpression } = require('../handlers');
 const { getType } = require('../handlers/lib/Utils');
 const { OffChainStorage } = require('../offChainStorage');
 
+interface Element {
+  class: string;
+  [key: string]: any;
+}
 
-const formatIntoMediaContractualObjects = (mediaContract) => {
-  const finalMCObjects = { contracts: [] };
+interface MediaContract {
+  [key: string]: Element;
+}
+
+interface FinalMCObjects {
+  contracts: Element[];
+}
+
+const formatIntoMediaContractualObjects = (mediaContract: MediaContract): FinalMCObjects => {
+  const finalMCObjects: FinalMCObjects = { contracts: [] };
   // Search for all contract objects
-  Object.values(mediaContract).forEach((element) => {
+  Object.values(mediaContract).forEach((element: Element) => {
     if (element.class === 'Contract') {
       Object.keys(element).forEach((contractKey) => {
         if (
           element[contractKey] instanceof Array &&
           element[contractKey].length > 0
         ) {
-          const temp = {};
-          element[contractKey].forEach((arrayElement) => {
+          const temp: { [key: string]: Element } = {};
+          element[contractKey].forEach((arrayElement: string | number) => {
             temp[arrayElement] = mediaContract[arrayElement];
           });
           element[contractKey] = temp;
@@ -29,19 +41,19 @@ const formatIntoMediaContractualObjects = (mediaContract) => {
   return finalMCObjects;
 };
 
-const getJsonLDGraph = (ttl) => {
-  const jsonLDGraph = {};
+const getJsonLDGraph = (ttl: string) => {
+  const jsonLDGraph: { [key: string]: any } = {};
   const jsonld = parseTTL(ttl);
-  jsonld['@graph'].forEach((element) => {
+  jsonld['@graph'].forEach((element: { [key: string]: any }) => {
     jsonLDGraph[element['@id']] = element;
   });
 
   return jsonLDGraph;
 };
 
-const getContractFromMCO = async (ttl) => {
-  const jsonLDGraph = {};
-  const mediaContractualObjects = {};
+const getContractFromMCO = async (ttl: string) => {
+  const jsonLDGraph: { [key: string]: any } = {};
+  const mediaContractualObjects: { [key: string]: any } = {};
   const traversedIds = {
     ids: [],
     parties: [],
@@ -50,7 +62,7 @@ const getContractFromMCO = async (ttl) => {
   };
   const jsonld = parseTTL(ttl);
 
-  jsonld['@graph'].forEach((element) => {
+  jsonld['@graph'].forEach((element: { [key: string]: any }) => {
     jsonLDGraph[element['@id']] = element;
   });
 
@@ -64,10 +76,8 @@ const getContractFromMCO = async (ttl) => {
   };
   await offChainStorage.start();
 
-
-
   // Search for all contract objects
-  for (var element of Object.values(jsonLDGraph)) {
+  for (const element of Object.values(jsonLDGraph)) {
     const classData = lut.AllClasses[getType(element).toLowerCase()];
     if (classData[0] === 'Contract') {
       await handleContract(
@@ -82,7 +92,7 @@ const getContractFromMCO = async (ttl) => {
   }
 
   // Search for all deontic expression objects
-  for (var element of Object.values(jsonLDGraph)) {
+  for (const element of Object.values(jsonLDGraph)) {
     const classData = lut.AllClasses[getType(element).toLowerCase()];
     if (classData[0] === 'MCODeonticExpression') {
       await handleMCODeonticExpression(
@@ -106,6 +116,4 @@ const getContractFromMCO = async (ttl) => {
   };
 };
 
-
-
-module.exports = { getContractFromMCO, getJsonLDGraph, OffChainStorage };
+export { getContractFromMCO, getJsonLDGraph, OffChainStorage };

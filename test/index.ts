@@ -1,4 +1,5 @@
-const { getContractFromMCO } = require('../src');
+const { getContractFromMCO } = require('../dist/index.min.js');
+
 const fs = require('fs');
 const commandLineArgs = require('command-line-args');
 const optionDefinitions = [{ name: 'contract', alias: 'c', type: String }];

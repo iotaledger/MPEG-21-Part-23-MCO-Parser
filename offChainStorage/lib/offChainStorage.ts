@@ -1,8 +1,9 @@
-// const defaultIPFSGateway = 'https://api.ipfs.iota-ec.net'
-// const defaultIPFSGateway = 'https://ipfs.io'
 const defaultIPFSGateway = "http://localhost:5001"
-// const defaultIPFSGateway = ""
 
+import { createHelia } from 'helia';
+import { CID } from 'multiformats/cid';
+import { json } from '@helia/json';
+import { create } from 'ipfs-http-client';
 
 interface OffChainStorage {
 	// Starts the off-chain storage
@@ -28,10 +29,6 @@ export class HeliaOffChainStorage implements OffChainStorage {
 	}
 
 	async start(): Promise<void> {
-		const { createHelia } = await import('helia');
-		const { json } = await import('@helia/json');
-		const { CID } = await import('multiformats/cid');
-
 		this.helia = await createHelia();
 		this.jsonHelia = json(this.helia);
 		this.CID = CID;
@@ -66,15 +63,13 @@ export class IPFSOffChainStorage {
 	private client: any;
 	private CID: any;
 
-	constructor(gatewayURL: string) {
+	constructor(gatewayURL?: string) {
 		this.gatewayURL = gatewayURL || defaultIPFSGateway;
 		this.CID = {}
 	}
 
 	async start() {
-		const { create } = await import('ipfs-http-client');
 		this.client = create({ url: this.gatewayURL });
-		const { CID } = await import('multiformats/cid');
 		this.CID = CID;
 	}
 

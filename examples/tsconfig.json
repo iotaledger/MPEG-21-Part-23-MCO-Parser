@@ -1,0 +1,15 @@
+{
+	"compilerOptions": {
+		"module": "commonjs", // or "esnext", "amd", etc.
+		"moduleResolution": "node", // or "classic"
+		"noImplicitAny": false,
+		"esModuleInterop": true,
+		// "target": "es2019",
+		// "types": [
+		// 	"node"
+		// ],
+		// "removeComments": true,
+		"skipLibCheck": true,
+		// "outDir": "dist"
+	}
+}

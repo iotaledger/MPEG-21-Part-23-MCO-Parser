@@ -86,7 +86,7 @@ export class IPFSOffChainStorage {
 		if (typeof payload !== 'object') payload = { payload };
 		try {
 			const response = await this.client.add(JSON.stringify(payload))
-			console.debug(`returning response: ${response}`)
+			console.debug(`Object created at: ipfs://${response.cid.toString()}`)
 
 			return 'ipfs://' + response.cid.toString()
 		} catch (err) {
